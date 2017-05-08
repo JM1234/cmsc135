@@ -172,7 +172,7 @@ def main():
     if (args.rtt_part_b):
         check_file(rtt_part_b_check, args.rtt_part_b)
     if (args.tr_part_a):
-        check_file(tr_part_a_check, args.tr_part_a)
+	    check_file(tr_part_a_check, args.tr_part_a)
     if (args.tr_part_b):
         check_file(tr_part_b_check, args.tr_part_b)
     if (args.dns):

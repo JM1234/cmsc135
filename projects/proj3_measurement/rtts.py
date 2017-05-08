@@ -2,6 +2,19 @@ import subprocess
 import re
 import json
 import pprint
+import matplotlib.pyplot as plot
+from bisect import bisect_left
+
+
+class discrete_cdf:
+		
+	def __init__(self,data):
+		self._data = data
+		self._data_len = float(len(data))
+
+	def __call__(self,point):
+		return (len(self._data[:bisect_left(self._data, point)]) / 
+		self._data_len)
 
 class RTTS:	
 
@@ -30,6 +43,7 @@ class RTTS:
 				)			
 			except subprocess.CalledProcessError:
 				response = "None"
+			
 			self.set_rtt(hostname, response, num_packets)
 			continue
 		
@@ -44,20 +58,14 @@ class RTTS:
 		self.write_json(raw_ping_output_filename, self.raw_data) 
 		self.write_json(agg_ping_output_filename, self.agg_data)
 		print "Done writing."
-
-	def plot_median_rtt_cdf ():
-		pass
-	def plot_ping_cdf (self) :
-		pass
-
+	
 	def set_rtt(self, hostname, response, num_packets):
-
-		self.raw_data[hostname]=[] #what if existing na?		
-		#print "..." +hostname
 		
-		for line in response.split():
+		self.raw_data[hostname]=[] #what if existing na?		
+		
+		for line in response.splitlines():
 			try:
-				found = re.search('time=(.+?) ms', line).group(1)			
+				found = re.search('time=(.+?) ms', line).group(1)	
 				self.raw_data[hostname].append(float(found))
 			except AttributeError:
 				continue
@@ -66,8 +74,8 @@ class RTTS:
 		if i>0 :
 			b = i*[-1.0]		
 			self.raw_data[hostname].extend(b)
-		print hostname
-
+		print hostname + str(self.raw_data[hostname])
+		
 	def write_json(self, file_name, data):
 		with open(file_name, 'w') as f:
 			json.dump(data, f)
@@ -108,14 +116,89 @@ class RTTS:
 		except ValueError:
 			return list
 
+	def plot_median_rtt_cdf(self, agg_ping_results_filename, output_cdf_filename):
+	
+		X=[] #median_val	
+		
+		try:
+			with open(agg_ping_results_filename, 'r') as f:			
+				results = json.load(f)
+		except IOError:
+				print "File not found."
+		 
+		for k, v in results.iteritems():
+			if (v['drop_rate'] != 100.00):		
+				X.append(v['median_rtt'])
+		
+		cdf =  discrete_cdf(sorted(X))
+		n = max(X)
+		xvalues = range(0, int(n))
+		yvalues = [cdf(point) for point in xvalues]
+		
+		f = plot.figure()
+		plot.plot(xvalues, yvalues, label = "Median CDF")
+		plot.legend()
+		plot.grid()
+		plot.xlabel("seconds")
+		plot.ylabel("Cumulative Fraction")
+		plot.show()
+
+		self.save_graph(output_cdf_filename, f)
+
+	def plot_ping_cdf(self, raw_ping_results_filename, output_cdf_filename):
+		X = [] #list
+		colorstring = "kbgry"
+		i=0
+
+		try:
+			with open(raw_ping_results_filename, 'r' ) as f: 
+				result = json.load(f)
+		except IOError:
+			print "File not found."
+
+		f = plot.figure()
+		for k, v in result.iteritems():
+			i+=1
+			X = v
+
+			cdf =  discrete_cdf(sorted(X))
+			n = max(X)
+			xvalues = range(0, int(n))
+			yvalues = [cdf(point) for point in xvalues]
+			
+			plot.plot(xvalues, yvalues, color = colorstring[i], label = k)
+		
+		plot.legend()
+		plot.grid()
+		plot.xlabel("seconds")
+		plot.ylabel("Cumulative Fraction")
+		plot.show()
+
+		self.save_graph(output_cdf_filename, f)
+
+	def save_graph(self, output_cdf_filename, f):
+		from matplotlib.backends import backend_pdf
+		with backend_pdf.PdfPages(output_cdf_filename) as pdf:
+			pdf.savefig(f)
+
+	
 a= RTTS()
+
+"""
+###part 1
+
 try:
 	f = open('alexa_top_100', 'r')		
 	hosts = file.read(f)
 except IOError:
 	hosts = {}
 
-#hosts = ['google.com', 'todayhumor.co.kr', 'zanvarsity.ac.tz', 'taobao.com']
+hosts = ['google.com', 'todayhumor.co.kr', 'zanvarsity.ac.tz', 'taobao.com']
 print "Running..."
 #print "HOSTS: " + str(len(hosts.split()))
-a.run_ping(hosts.split(), 100, 'rtts_a_raw.json', 'rtts_a_agg.json' )
+"""
+a.run_ping(['google.com'], 5, 'trial.json', 'trial_agg.json' )
+
+#a.plot_median_rtt_cdf("rtts_a_agg.json", "rtts_a_plot.pdf")
+
+#a.plot_ping_cdf("rtts_b_raw.json", "rtts_b_plot.pdf")
