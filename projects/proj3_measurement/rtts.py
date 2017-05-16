@@ -53,8 +53,6 @@ class RTTS:
 		self.agg_ping(self.raw_data, num_packets)
 		
 		#store results
-		#print "Writing raw_ping of length " + str(len(self.raw_data)) \
-		#	+ "agg_data of length " + str(len(self.agg_data))
 		self.write_json(raw_ping_output_filename, self.raw_data) 
 		self.write_json(agg_ping_output_filename, self.agg_data)
 		print "Done writing."

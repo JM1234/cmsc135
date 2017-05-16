@@ -7,37 +7,48 @@ import os
 
 class TraceRT:
 	
-	def run_traceroute(self, hostnames, num_packets, output_filename):
+
+	def run_traceroute(self, hostname, num_packets, output_filename):		
 		
 		timestamp = int(time.time())
-		self.host = {}
+
+		time_ = "timestamp: "  +str(timestamp)
+		self.append_file(output_filename, time_)
+
+		traceroute = subprocess.Popen(["traceroute", '-A', '-q', num_packets, hostname], stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+
+		for line in iter(traceroute.stdout.readline, ""):		
+			self.append_file(output_filename, line)
+			
+	def parse_traceroute(self, raw_traceroute_filename, output_filename):
 		self.hop = []
+		self.host = {}
 
-		self.host['timestamp'] = timestamp
-		for hostname in hostnames:	
-			self.host[hostname] = []
-			traceroute = subprocess.Popen(["traceroute", '-A', '-q', num_packets, hostname], stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+		for l in open(raw_traceroute_filename, 'r'):
+			line = json.loads(l)	
+			
+			if line.startswith('timestamp: '):
+				self.host['timestamp'] = line.split()[1]
+				
+			elif not line.startswith('traceroute'):				
+				#print line
+				m= line.split()
+				asn = 'None'
+				ip = m[1]
+				name = m[2].strip('()')
+				if (m[3] != "[*]"):			
+					asn = m[3].strip('[]')	
+				self.addHop(hostname, name, ip, asn)
+			elif line.startswith('traceroute'):
+				hostname = re.search('traceroute to (.+?) \([1-9]', line).group(1)
+				self.host[hostname]=[]
 		
-			for line in iter(traceroute.stdout.readline, ""):
-					
-				if not line.startswith('traceroute'):
-									
-					print line
-					m= line.split()
-					asn = 'None'
-					ip = m[1]
-					name = m[2].strip('()')
-					if (m[3] != "[*]"):			
-						asn = m[3].strip('[]')	
-
-					self.addHop(hostname, name, ip, asn)
-
-			result = [dict(tupleized) for tupleized in set(tuple(item.items()) for item in self.hop)]
-			self.host[hostname].append(result)		
+		print self.hop
+		result = [dict(tupleized) for tupleized in set(tuple(item.items()) for item in self.hop)]
+		self.host[hostname].append(result)		
 		self.append_file(output_filename, self.host)
 
 	def addHop(self, host, name, ip, asn):
-		
 		self.hop.append( { \
 			'name' : name, \
 			'ip' : ip, \
@@ -49,21 +60,10 @@ class TraceRT:
 			json.dump(data, f)
 			f.write(os.linesep)
 
-	#def write_json(self, file_name, data):
-		#with open(file_name, 'w') as f:
-		#	json.dump(data, f)	
-			
-	def parse_traceroute(raw_traceroute_filename, output_filename) :
-		pass
-
-
-"""
-	def gethostname(self, ip):
-		if socket.gethostname().find('.')>=0:
-			return socket.gethostname()
-		else:
-			return socket.gethostbyaddr(socket.gethostname())[0]
-"""
+	def write_json(self, file_name, data):
+		with open(file_name, 'w') as f:
+			json.dump(data, f)	
 
 a= TraceRT()
-a.run_traceroute(['twitter.com'], "5", "tr_a.json")
+a.run_traceroute('google.com', "5", "raw_b.json")
+a.parse_traceroute("raw_b.json", "tr_a.json")

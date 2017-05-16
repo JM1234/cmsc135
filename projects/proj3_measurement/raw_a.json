@@ -1,0 +1,4 @@
+"timestamp: 1494895394"
+"traceroute to twitter.com (104.244.42.193), 30 hops max, 60 byte packets\n"
+" 1  10.0.2.2 (10.0.2.2) [*]  0.592 ms  0.315 ms  0.458 ms  0.443 ms  0.494 ms\n"
+" 2  10.0.2.2 (10.0.2.2) [*]  6.238 ms  7.565 ms  7.849 ms  7.611 ms  7.318 ms\n"

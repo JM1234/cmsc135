@@ -1,0 +1,4 @@
+"timestamp: 1494896457"
+"traceroute to google.com (103.233.38.163), 30 hops max, 60 byte packets\n"
+" 1  10.0.2.2 (10.0.2.2) [*]  0.786 ms  0.662 ms  0.354 ms  0.451 ms  0.530 ms\n"
+" 2  10.0.2.2 (10.0.2.2) [*]  6.384 ms  6.005 ms  5.695 ms  6.977 ms  5.889 ms\n"
