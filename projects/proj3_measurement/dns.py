@@ -91,16 +91,27 @@ class DNS:
 		#print raw_data[0]["Queries"][0]["Answers"][0]["Queried name"] #loop queries, loop answers
 
 	def average_root_servers(self, list):
-		server_ttl ={}
+		
+		server_ttls = []
 
 		for h in range(0, len(list)):
 			if list[h]["Success"] is True:
-				server_ttl[list[h]["Name"]] = {}
-				print list[h]["Name"]		
-				for q in range(0, len(list[h]["Queries"])):
-					for a in range(0, len(list[h]["Queries"][q]["Answers"])):
-						print (list[h]["Queries"][q]["Answers"][a]["Queried name"])
-						#condition: if list[h]["Queries"][q]["Answer"][a]["Queried name"] is not ".", compute average
+				#host = list[h]["Name"]				
+				
+				#for q in range(0, len(list[h]["Queries"])):
+				#	ttl=0				
+				
+				for a in range(0, len(list[h]["Queries"][0]["Answers"])):
+					print list[h]["Queries"][q]["Answers"][a]
+
+					if list[h]["Queries"][q]["Answers"][a]["Queried name"] is not ".":
+						break
+
+					print list[h]["Queries"][q]["Answers"][a]["TTL"]	
+					ttl = ttl + list[h]["Queries"][q]["Answers"][a]["TTL"]							
+					#compute average
+				server_ttls.append(ttl/(a+1))
+		#print server_ttls					
 
 	def generate_time_cdfs(json_filename, output_filename):
 		pass
