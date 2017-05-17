@@ -1,6 +1,7 @@
 import subprocess
 import shlex
 import re
+import json 
 
 class DNS:
 
@@ -9,17 +10,22 @@ class DNS:
 		self.host = []
 		self.result = []
 		
-		hostname = "www.google.com"
+		#with open(raw_ping_output_filename, 'r') as f:			
+		#	hostnames = json.load(f)
 
-		if(dns_query_server == "None"):
-			cmd = 'dig +trace +tries=1 +nofail ' + hostname
-		else:
-			cmd = 'dig ' + hostname +  " dns_query_server"
+		hostnames= ["google.com"]
+		for hostname in hostnames:
 
-		proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE)
-		out,err = proc.communicate()
+			if(dns_query_server == "None"):
+				cmd = 'dig +trace +tries=1 +nofail ' + hostname
+			else:
+				cmd = 'dig ' + hostname +  " dns_query_server"
+
+			proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE)
+			out,err = proc.communicate()
 		
-		self.add_host(hostname, "connection timed out" not in out , out)
+			self.add_host(hostname, "connection timed out" not in out , out)
+
 		self.write_json(output_filename, self.result)
 
 	def add_host(self, host, result, output):
@@ -68,14 +74,33 @@ class DNS:
 			"TTL" : ttl 
 		})
 
-	def get_average_ttls(filename):
-		with open(filename, 'r') as f:			
-			self.raw_data = json.load(f)
-		
-	def average_root_servers()
+	def get_average_times(self, filename):
 
-	def get_average_times(filename):
-		pass
+		with open(filename, 'r') as f:			
+			raw_data = json.load(f)
+
+		server_ttl = {}
+		total_ave_ttl = 0
+		host_count = 0
+		answer_count = 0
+		answer_ave = 0
+
+		self.average_root_servers(raw_data)
+		#print raw_data[0]["Name"]
+		#print raw_data[0]["Success"]
+		#print raw_data[0]["Queries"][0]["Answers"][0]["Queried name"] #loop queries, loop answers
+
+	def average_root_servers(self, list):
+		server_ttl ={}
+
+		for h in range(0, len(list)):
+			if list[h]["Success"] is True:
+				server_ttl[list[h]["Name"]] = {}
+				print list[h]["Name"]		
+				for q in range(0, len(list[h]["Queries"])):
+					for a in range(0, len(list[h]["Queries"][q]["Answers"])):
+						print (list[h]["Queries"][q]["Answers"][a]["Queried name"])
+						#condition: if list[h]["Queries"][q]["Answer"][a]["Queried name"] is not ".", compute average
 
 	def generate_time_cdfs(json_filename, output_filename):
 		pass
@@ -87,6 +112,8 @@ class DNS:
 		with open(file_name, 'w') as f:
 			json.dump(data, f)
 
+
 a = DNS()
 
-a.run_dig(['google.com'], "dig.json")
+#a.run_dig("alexa_top_100.txt", "dig.json")
+a.get_average_times("dig.json")
