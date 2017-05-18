@@ -13,7 +13,6 @@ class DNS:
 		f = open('alexa_top_100', 'r')		
 		hostnames = file.read(f)
 		
-		#hostnames = ["twitter.com", "google.com"]
 		for hostname in hostnames.split():
 			print hostname
 			if(dns_query_server == "None"):
@@ -91,20 +90,22 @@ class DNS:
 		
 		server_ttls = []
 		server_tld = []
-		
 
 		q = [result["Queries"][0] for result in list if result["Success"]]
 		
 		for a in q:
 			ttl=0
-		
+			
 			s_ttl = [li["TTL"] for li in a["Answers"]]
-		
-			for t in s_ttl:
-				ttl = ttl+ int(t)
+			#print s_ttl
+			
+			for i in s_ttl:
+				ttl = ttl+ int(i)
 
-			server_ttls.append(ttl / len(s_ttl))
-		
+			server_ttls.append(ttl/len(s_ttl))
+
+		print server_ttls
+
 	def generate_time_cdfs(json_filename, output_filename):
 		pass
 
@@ -118,5 +119,5 @@ class DNS:
 
 a = DNS()
 
-a.run_dig("alexa_top_100", "dig.json")
-#a.get_average_times("dig.json")
+#a.run_dig("alexa_top_100", "dig.json")
+a.get_average_times("dig.json")
