@@ -9,13 +9,13 @@ class DNS:
 	
 		self.host = []
 		self.result = []
+				
+		f = open('alexa_top_100', 'r')		
+		hostnames = file.read(f)
 		
-		#with open(raw_ping_output_filename, 'r') as f:			
-		#	hostnames = json.load(f)
-
-		hostnames= ["google.com"]
-		for hostname in hostnames:
-
+		#hostnames = ["twitter.com", "google.com"]
+		for hostname in hostnames.split():
+			print hostname
 			if(dns_query_server == "None"):
 				cmd = 'dig +trace +tries=1 +nofail ' + hostname
 			else:
@@ -75,7 +75,7 @@ class DNS:
 		})
 
 	def get_average_times(self, filename):
-
+	
 		with open(filename, 'r') as f:			
 			raw_data = json.load(f)
 
@@ -86,33 +86,25 @@ class DNS:
 		answer_ave = 0
 
 		self.average_root_servers(raw_data)
-		#print raw_data[0]["Name"]
-		#print raw_data[0]["Success"]
-		#print raw_data[0]["Queries"][0]["Answers"][0]["Queried name"] #loop queries, loop answers
-
+		
 	def average_root_servers(self, list):
 		
 		server_ttls = []
+		server_tld = []
+		
 
-		for h in range(0, len(list)):
-			if list[h]["Success"] is True:
-				#host = list[h]["Name"]				
-				
-				#for q in range(0, len(list[h]["Queries"])):
-				#	ttl=0				
-				
-				for a in range(0, len(list[h]["Queries"][0]["Answers"])):
-					print list[h]["Queries"][q]["Answers"][a]
+		q = [result["Queries"][0] for result in list if result["Success"]]
+		
+		for a in q:
+			ttl=0
+		
+			s_ttl = [li["TTL"] for li in a["Answers"]]
+		
+			for t in s_ttl:
+				ttl = ttl+ int(t)
 
-					if list[h]["Queries"][q]["Answers"][a]["Queried name"] is not ".":
-						break
-
-					print list[h]["Queries"][q]["Answers"][a]["TTL"]	
-					ttl = ttl + list[h]["Queries"][q]["Answers"][a]["TTL"]							
-					#compute average
-				server_ttls.append(ttl/(a+1))
-		#print server_ttls					
-
+			server_ttls.append(ttl / len(s_ttl))
+		
 	def generate_time_cdfs(json_filename, output_filename):
 		pass
 
@@ -126,5 +118,5 @@ class DNS:
 
 a = DNS()
 
-#a.run_dig("alexa_top_100.txt", "dig.json")
-a.get_average_times("dig.json")
+a.run_dig("alexa_top_100", "dig.json")
+#a.get_average_times("dig.json")
