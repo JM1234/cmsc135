@@ -65,5 +65,6 @@ class TraceRT:
 			json.dump(data, f)	
 
 a= TraceRT()
+
 a.run_traceroute('facebook.com', "5", "tr_facebook.json")
 a.parse_traceroute("tr_facebook.json", "tr_a.json")
