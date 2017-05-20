@@ -4,6 +4,7 @@ import re
 import json 
 import matplotlib.pyplot as plot
 from bisect import bisect_left
+import os
 
 class discrete_cdf:
 		
@@ -22,9 +23,10 @@ class DNS:
 		self.host = []
 		self.result = []
 				
-		f = open('alexa_top_100', 'r')		
+		f = open(hostname_filename, 'r')		
 		hostnames = file.read(f)
-		
+		#hostnames = ["google.com", "twitter.com"]
+
 		for hostname in hostnames.split():
 			print hostname
 			if(dns_query_server == "None"):
@@ -37,95 +39,30 @@ class DNS:
 		
 			self.add_host(hostname, "connection timed out" not in out , out)
 
-		self.write_json(output_filename, self.result)
-
-	def add_host(self, host, result, output):
-		self.result.append ({ 
-			"Name" : host, \
-			"Success" : result	
-		})
-		
-		if (result):
-			self.result[len(self.result)-1]["Queries"] = self.get_queries(output)
-	
-	def get_queries(self, output) :
-		answers = []
-		queries = []
-
-		for line in output.splitlines():
-			if not line.startswith(';'):
-				
-				parse = line.split()
-				try:				
-					queried_name = parse[0]
-					data = parse[4]
-					_type = parse[3]
-					ttl = parse[1]
-					self.add_answer(answers, parse[0], parse[4], parse[3], parse[1])
-				except IndexError:
-					pass
-			elif line.startswith(';; Received'):	
-				time = re.search('in (.+?) ms', line).group(1)
-				self.add_query(queries, time, answers)
-				answers= []
-				
-		return queries
-
-	def add_query(self, list, time, answers):
-		list.append( {
-			"Time in millis" : time, \
-			"Answers" : answers
-			})
-
-	def add_answer(self, list, name, data, _type, ttl):
-		list.append({
-			"Queried name" : name, \
-			"Data" : data, \
-			"Type" : _type, \
-			"TTL" : ttl 
-		})
+		self.append_json(output_filename, self.result)
 
 	def get_average_ttls(self, filename):
 	
 		with open(filename, 'r') as f:			
 			raw_data = json.load(f)
 
-		server_ttl = compute_average(raw_data, 0)
-		tld_ttl = compute_average(raw_data, 1)
-		other_ttl = compute_average(raw_data, 2)
-		terminating_entry = compute_average(raw_data,3)
-		
+		server_ttl = self.compute_average(raw_data, 0)
+		tld_ttl = self.compute_average(raw_data, 1)
+		other_ttl = self.compute_average(raw_data, 2)
+		terminating_entry = self.compute_average(raw_data,3)
+
 		return [server_ttl, tld_ttl, other_ttl, terminating_entry]
 
-	def compute_average(self, list, i):
-		
-		_ttls = []
-	
-		q = [result["Queries"][i] for result in list if result["Success"]]
-		
-		for a in q:
-			ttl=0
-			s_ttl = [li["TTL"] for li in a["Answers"]]
-			
-			for i in s_ttl:
-				ttl = ttl+ int(i)
-
-			_ttls.append(ttl/len(s_ttl))
-			
-		ave=0
-		for li in _ttls:
-			ave = ave+li			
-		print _ttls
-		return ave/len(_ttls)
-	
 	def get_average_times(self, filename):
 		with open(filename, 'r') as f:			
 			raw_data = json.load(f)
 		
-		server_q = [result["Queries"][0]["Time in millis"] for result in raw_data if result["Success"]]
-		tld_q = [result["Queries"][1]["Time in millis"] for result in raw_data if result["Success"]]
-		other_q = [result["Queries"][2]["Time in millis"] for result in raw_data if result["Success"]]
-		final_q = [result["Queries"][3]["Time in millis"] for result in raw_data if result["Success"]]
+		li = self.agg_hosts(raw_data)
+
+		server_q = [result["Queries"][0]["Time in millis"] for result in li]
+		tld_q = [result["Queries"][1]["Time in millis"] for result in  li]
+		other_q = [result["Queries"][2]["Time in millis"] for result in li]
+		final_q = [result["Queries"][3]["Time in millis"] for result in li]
 
 		size = len(server_q) + len(tld_q) + len(other_q)
 	
@@ -178,10 +115,6 @@ class DNS:
 						hosts[v["Name"]].append(e["Data"])
 		print "Value 2: " + str(len(changed))
 
-	def write_json(self, file_name, data):
-		with open(file_name, 'w') as f:
-			json.dump(data, f)
-
 	def generate_time_cdfs(self, json_filename, output_filename):
 		X = [] #list
 		colorstring = "krgy"
@@ -193,11 +126,13 @@ class DNS:
 				raw_data = json.load(f)
 		except IOError:
 			print "File not found."
+		
+		li = self.agg_hosts(raw_data)
 
-		server_q = [result["Queries"][0]["Time in millis"] for result in raw_data if result["Success"]]
-		tld_q = [result["Queries"][1]["Time in millis"] for result in raw_data if result["Success"]]
-		other_q = [result["Queries"][2]["Time in millis"] for result in raw_data if result["Success"]]
-		final_q = [result["Queries"][3]["Time in millis"] for result in raw_data if result["Success"]]
+		server_q = [result["Queries"][0]["Time in millis"] for result in li ]
+		tld_q = [result["Queries"][1]["Time in millis"] for result in li]
+		other_q = [result["Queries"][2]["Time in millis"] for result in li]
+		final_q = [result["Queries"][3]["Time in millis"] for result in li]
 
 		#total time to resolve a site
 		t.extend(server_q)
@@ -235,10 +170,105 @@ class DNS:
 		with backend_pdf.PdfPages(output_cdf_filename) as pdf:
 			pdf.savefig(f)
 
+	def append_json(self, filename, data):
+		with open(filename, 'a') as f:
+			json.dump(data, f)
+			#f.write(os.linesep)
+
+	def write_json(self, file_name, data):
+		with open(file_name, 'w') as f:
+			json.dump(data, f)
+
+	def add_host(self, host, result, output):
+		self.result.append ({ 
+			"Name" : host, \
+			"Success" : result	
+		})
+		
+		if (result):
+			self.result[len(self.result)-1]["Queries"] = self.get_queries(output)
+	
+	def get_queries(self, output) :
+		answers = []
+		queries = []
+
+		for line in output.splitlines():
+			if not line.startswith(';'):
+				
+				parse = line.split()
+				try:				
+					queried_name = parse[0]
+					data = parse[4]
+					_type = parse[3]
+					ttl = parse[1]
+					self.add_answer(answers, parse[0], parse[4], parse[3], parse[1])
+				except IndexError:
+					pass
+			elif line.startswith(';; Received'):	
+				time = re.search('in (.+?) ms', line).group(1)
+				self.add_query(queries, time, answers)
+				answers= []
+				
+		return queries
+
+	def add_query(self, list, time, answers):
+		list.append( {
+			"Time in millis" : time, \
+			"Answers" : answers
+			})
+
+	def add_answer(self, list, name, data, _type, ttl):
+		list.append({
+			"Queried name" : name, \
+			"Data" : data, \
+			"Type" : _type, \
+			"TTL" : ttl 
+		})
+
+	def compute_average (self, list, i):
+		
+		_ttls = []
+		hosts = self.agg_hosts(list, i)
+
+		for li in hosts:
+			ttl=0
+			s_ttl = [li["TTL"] for li in a["Answers"]]
+			
+			for i in s_ttl:
+				ttl = ttl+ int(i)
+
+			_ttls.append(ttl/len(s_ttl))
+			
+		ave=0
+		for li in _ttls:
+			ave = ave+li			
+	
+		return ave/len(_ttls)
+
+	def agg_hosts(self, list, i=-1):
+		hosts ={}
+
+		for result in list:
+			if result["Success"]:
+				try:
+					if i != -1:
+						hosts[result["Name"]].append(result["Queries"][i])
+					else:
+						hosts[result["Name"]].append(result["Queries"])
+
+				except KeyError:
+					hosts[result["Name"]] =[]
+					if  i!= -1:
+						hosts[result["Name"]].append(result["Queries"][i])					
+					else:
+						hosts[result["Name"]].append(result["Queries"])
+
+		return hosts
+
 a = DNS()
 
-#a.run_dig("alexa_top_100", "dig2.json")
+a.run_dig("alexa_top_100", "dig_5.json")
 #a.get_average_ttls("dig.json")
 #a.get_average_times("dig.json")
 #a.generate_time_cdfs("dig.json", "dns_plot.pdf")
-a.count_different_dns_responses("dig.json", "dig2.json")
+#a.count_different_dns_responses("dig.json", "dig2.json")
