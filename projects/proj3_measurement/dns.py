@@ -146,15 +146,11 @@ class DNS:
 
 		with open(filename2, 'r') as f:
 			list2 = json.load(f)
-
-		#print list1 #["Queries"][3]
-		#final1 = [result["Queries"] for result in list1 if result["Success"]]	
-		#final2 = [result["Queries"] for result in list2 if result["Success"]]	
 		
 		#how many times it changed within one query
 		hosts = {}
+		changed = []
 
-		count_one = 0
 		for v in list1:			
 			hosts[v["Name"]] = []
 
@@ -164,24 +160,23 @@ class DNS:
 				
 				for e in q:
 					if e["Data"] not in hosts[v["Name"]]:
-						count_one += 1
+						if v["Name"] not in changed:
+							changed.append(v["Name"]) 
 						hosts[v["Name"]].append(e["Data"])
-		print count_one
-
-		count_two = count_one
-		for v in list2:
-			try:		
-				if v["Success"]:
-					q = v["Queries"][3]["Answers"]
-				
-					for e in q:
-						if e["Data"] not in hosts[v["Name"]]:
-							count_two += 1
-							hosts[v["Name"]].append(e["Data"])
-			except KeyError:
-				count_two +=1
+		count1 = len(changed)
+		print "Value 1: " + str(count1)
 		
-		print count_two
+		#how many times it changed within two files
+		for v in list2:		
+			if v["Success"]:
+				q = v["Queries"][3]["Answers"]
+			
+				for e in q:
+					if e["Data"] not in hosts[v["Name"]]:
+						if v["Name"] not in changed:
+							changed.append(v["Name"]) 
+						hosts[v["Name"]].append(e["Data"])
+		print "Value 2: " + str(len(changed))
 
 	def write_json(self, file_name, data):
 		with open(file_name, 'w') as f:
