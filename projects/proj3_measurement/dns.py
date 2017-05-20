@@ -2,6 +2,18 @@ import subprocess
 import shlex
 import re
 import json 
+import matplotlib.pyplot as plot
+from bisect import bisect_left
+
+class discrete_cdf:
+		
+	def __init__(self,data):
+		self._data = data
+		self._data_len = float(len(data))
+
+	def __call__(self,point):
+		return (len(self._data[:bisect_left(self._data, point)]) / 
+		self._data_len)
 
 class DNS:
 
@@ -73,51 +85,165 @@ class DNS:
 			"TTL" : ttl 
 		})
 
-	def get_average_times(self, filename):
+	def get_average_ttls(self, filename):
 	
 		with open(filename, 'r') as f:			
 			raw_data = json.load(f)
 
-		server_ttl = {}
-		total_ave_ttl = 0
-		host_count = 0
-		answer_count = 0
-		answer_ave = 0
-
-		self.average_root_servers(raw_data)
+		server_ttl = compute_average(raw_data, 0)
+		tld_ttl = compute_average(raw_data, 1)
+		other_ttl = compute_average(raw_data, 2)
+		terminating_entry = compute_average(raw_data,3)
 		
-	def average_root_servers(self, list):
-		
-		server_ttls = []
-		server_tld = []
+		return [server_ttl, tld_ttl, other_ttl, terminating_entry]
 
-		q = [result["Queries"][0] for result in list if result["Success"]]
+	def compute_average(self, list, i):
+		
+		_ttls = []
+	
+		q = [result["Queries"][i] for result in list if result["Success"]]
 		
 		for a in q:
 			ttl=0
-			
 			s_ttl = [li["TTL"] for li in a["Answers"]]
-			#print s_ttl
 			
 			for i in s_ttl:
 				ttl = ttl+ int(i)
 
-			server_ttls.append(ttl/len(s_ttl))
+			_ttls.append(ttl/len(s_ttl))
+			
+		ave=0
+		for li in _ttls:
+			ave = ave+li			
+		print _ttls
+		return ave/len(_ttls)
+	
+	def get_average_times(self, filename):
+		with open(filename, 'r') as f:			
+			raw_data = json.load(f)
+		
+		server_q = [result["Queries"][0]["Time in millis"] for result in raw_data if result["Success"]]
+		tld_q = [result["Queries"][1]["Time in millis"] for result in raw_data if result["Success"]]
+		other_q = [result["Queries"][2]["Time in millis"] for result in raw_data if result["Success"]]
+		final_q = [result["Queries"][3]["Time in millis"] for result in raw_data if result["Success"]]
 
-		print server_ttls
+		size = len(server_q) + len(tld_q) + len(other_q)
+	
+		total=0
+		final=0
+		for i in range(0, len(server_q)):
+			total = total+ int(server_q[i]) + int(tld_q[i]) + int(other_q[i])
+			final = final + int (final_q[i])
+		time_resolved = total/size 
+		ave_final = final/len(final_q)
 
-	def generate_time_cdfs(json_filename, output_filename):
-		pass
+		return [time_resolved, ave_final]
 
-	def count_different_dns_responses(filename1, filename2):
-		pass
+	def count_different_dns_responses(self, filename1, filename2):
+		
+		with open(filename1, 'r') as f:
+			list1 = json.load(f)
+
+		with open(filename2, 'r') as f:
+			list2 = json.load(f)
+
+		#print list1 #["Queries"][3]
+		#final1 = [result["Queries"] for result in list1 if result["Success"]]	
+		#final2 = [result["Queries"] for result in list2 if result["Success"]]	
+		
+		#how many times it changed within one query
+		hosts = {}
+
+		count_one = 0
+		for v in list1:			
+			hosts[v["Name"]] = []
+
+			if v["Success"]:
+				q = v["Queries"][3]["Answers"]
+				hosts[v["Name"]].append(q[0]["Data"])
+				
+				for e in q:
+					if e["Data"] not in hosts[v["Name"]]:
+						count_one += 1
+						hosts[v["Name"]].append(e["Data"])
+		print count_one
+
+		count_two = count_one
+		for v in list2:
+			try:		
+				if v["Success"]:
+					q = v["Queries"][3]["Answers"]
+				
+					for e in q:
+						if e["Data"] not in hosts[v["Name"]]:
+							count_two += 1
+							hosts[v["Name"]].append(e["Data"])
+			except KeyError:
+				count_two +=1
+		
+		print count_two
 
 	def write_json(self, file_name, data):
 		with open(file_name, 'w') as f:
 			json.dump(data, f)
 
+	def generate_time_cdfs(self, json_filename, output_filename):
+		X = [] #list
+		colorstring = "krgy"
+		category = ["Root", "TLD", "Other", "Terminating"] 
+		t = []
+
+		try:
+			with open(json_filename, 'r' ) as f: 
+				raw_data = json.load(f)
+		except IOError:
+			print "File not found."
+
+		server_q = [result["Queries"][0]["Time in millis"] for result in raw_data if result["Success"]]
+		tld_q = [result["Queries"][1]["Time in millis"] for result in raw_data if result["Success"]]
+		other_q = [result["Queries"][2]["Time in millis"] for result in raw_data if result["Success"]]
+		final_q = [result["Queries"][3]["Time in millis"] for result in raw_data if result["Success"]]
+
+		#total time to resolve a site
+		t.extend(server_q)
+		t.extend(tld_q)
+		t.extend(other_q)
+		t.extend(final_q)
+		
+		X = map(int, t)
+		cdf =  discrete_cdf(sorted(X))
+		n = max(X)
+		xvalues = range(0, int(n))
+		yvalues = [cdf(point) for point in xvalues]
+		
+		plot.plot(xvalues, yvalues, color = "blue", label = "Total Time to Resolve a Site")
+
+		#terminating query	
+		final = map(int, final_q)
+		cdf =  discrete_cdf(sorted(final))
+		n = max(final)
+		xvalues = range(0, int(n))
+		yvalues = [cdf(point) for point in xvalues]
+		
+		plot.plot(xvalues, yvalues, color = "orange", label = "Time to Resolve the Final Request")
+				
+		plot.legend()
+		plot.grid()
+		plot.xlabel("seconds")
+		plot.ylabel("Cumulative Fraction")
+		plot.show()
+
+		self.save_graph(output_cdf_filename, f)
+
+	def save_graph(self, output_cdf_filename, f):
+		from matplotlib.backends import backend_pdf
+		with backend_pdf.PdfPages(output_cdf_filename) as pdf:
+			pdf.savefig(f)
 
 a = DNS()
 
-#a.run_dig("alexa_top_100", "dig.json")
-a.get_average_times("dig.json")
+#a.run_dig("alexa_top_100", "dig2.json")
+#a.get_average_ttls("dig.json")
+#a.get_average_times("dig.json")
+#a.generate_time_cdfs("dig.json", "dns_plot.pdf")
+a.count_different_dns_responses("dig.json", "dig2.json")
