@@ -59,27 +59,31 @@ class DNS:
 		return [server_ttl, tld_ttl, other_ttl, terminating_entry]
 
 	def get_average_times(self, filename):
-		with open(filename, 'r') as f:			
-			raw_data = json.load(f)
+		raw_data = []
+		
+		for l in open(filename, 'r'):
+			line = json.loads(l)	
+			raw_data.append(line)
 
-		#li = self.agg_hosts(raw_data)
+		li = self.agg_hosts(raw_data)		
 
-#		server_q = [result["Queries"][0]["Time in millis"] for result in li]
-#		tld_q = [result["Queries"][1]["Time in millis"] for result in  li]
-#		other_q = [result["Queries"][2]["Time in millis"] for result in li]
-#		final_q = [result["Queries"][3]["Time in millis"] for result in li]
+		for k, v in li.iteritems():
+			server_q = [result[0]["Time in millis"] for result in v] 			
+			tld_q = [result[1]["Time in millis"] for result in  v]
+			other_q = [result[2]["Time in millis"] for result in v]
+			final_q = [result[3]["Time in millis"] for result in v]
 
-#		size = len(server_q) + len(tld_q) + len(other_q)
+		size = len(server_q) + len(tld_q) + len(other_q)
 	
-#		total=0
-#		final=0
-#		for i in range(0, len(server_q)):
-#			total = total+ int(server_q[i]) + int(tld_q[i]) + int(other_q[i])
-#			final = final + int (final_q[i])
-#		time_resolved = total/size 
-#		ave_final = final/len(final_q)
+		total=0
+		final=0
+		for i in range(0, len(server_q)):
+			total = total+ int(server_q[i]) + int(tld_q[i]) + int(other_q[i])
+			final = final + int (final_q[i])
+		time_resolved = total/size 
+		ave_final = final/len(final_q)
 
-#		return [time_resolved, ave_final]
+		return [time_resolved, ave_final]
 
 	def count_different_dns_responses(self, filename1, filename2):
 		
@@ -278,7 +282,7 @@ class DNS:
 a = DNS()
 
 #a.run_dig("alexa_top_100", "dig_5.json")
-print a.get_average_ttls("dig_5.json")
-#a.get_average_times("dig.json")
+#print a.get_average_ttls("dig_5.json")
+print a.get_average_times("dig_5.json")
 #a.generate_time_cdfs("dig.json", "dns_plot.pdf")
 #a.count_different_dns_responses("dig.json", "dig2.json")
