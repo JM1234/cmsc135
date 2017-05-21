@@ -55,7 +55,7 @@ class DNS:
 		tld_ttl = self.compute_average(raw_data, 1)
 		other_ttl = self.compute_average(raw_data, 2)
 		terminating_entry = self.compute_average(raw_data,3)
-
+		
 		return [server_ttl, tld_ttl, other_ttl, terminating_entry]
 
 	def get_average_times(self, filename):
@@ -230,22 +230,27 @@ class DNS:
 			"TTL" : ttl 
 		})
 
-	def compute_average (self, list, i):
+	def compute_average (self, l, i):
 		
 		_ttls = []
-		#hosts = self.agg_hosts(list, i)
-
-		for li in list:
+		hosts = self.agg_hosts(l, i)
+		
+		for a, v in hosts.iteritems():
+			
 			ttl=0
-			s_ttl = [li["TTL"] for li in a["Answers"]]
+			s_answers = [li["Answers"] for li in v]
+			for li in s_answers:
+				s_ttl = [ m["TTL"] for m in li]	
 			
 			for i in s_ttl:
-				ttl = ttl+ int(i)
-
+				try:
+					ttl = ttl+ int(i)
+				except ValueError:
+					pass
 			_ttls.append(ttl/len(s_ttl))
-			
+		
 		ave=0
-		for li in _ttls:
+		for li in _ttls:			
 			ave = ave+li			
 	
 		return ave/len(_ttls)
@@ -256,14 +261,14 @@ class DNS:
 		for result in list:
 			if result["Success"]:
 				try:
-					if i != -1:
+					if i is not -1:
 						hosts[result["Name"]].append(result["Queries"][i])
 					else:
 						hosts[result["Name"]].append(result["Queries"])
 
 				except KeyError:
 					hosts[result["Name"]] =[]
-					if  i!= -1:
+					if  i is not -1:
 						hosts[result["Name"]].append(result["Queries"][i])					
 					else:
 						hosts[result["Name"]].append(result["Queries"])
@@ -272,8 +277,8 @@ class DNS:
 
 a = DNS()
 
-a.run_dig("alexa_top_100", "dig_5.json")
-#print a.get_average_ttls("dig_5.json")
+#a.run_dig("alexa_top_100", "dig_5.json")
+print a.get_average_ttls("dig_5.json")
 #a.get_average_times("dig.json")
 #a.generate_time_cdfs("dig.json", "dns_plot.pdf")
 #a.count_different_dns_responses("dig.json", "dig2.json")
