@@ -26,12 +26,13 @@ class DNS:
 		f = open(hostname_filename, 'r')		
 		hostnames = file.read(f)
 		
+		#hostnames = ["google.com", "twitter.com"]
 		for hostname in hostnames.splitlines():
 			print hostname
 			if(dns_query_server == "None"):
 				cmd = 'dig +trace +tries=1 +nofail ' + hostname
 			else:
-				cmd = 'dig ' + hostname +  " dns_query_server"
+				cmd = 'dig ' + hostname +  ' @' +  dns_query_server
 
 			proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE)
 			out,err = proc.communicate()
@@ -127,8 +128,11 @@ class DNS:
 		#how many times it changed within two files
 		for v in list2:		
 			if v["Success"]:
-				q = v["Queries"][3]["Answers"]
-			
+
+				try:
+					q = v["Queries"][3]["Answers"]
+				except IndexError:
+					q= v["Queries"][0]["Answers"] #for server-specific answers
 				for e in q:
 					if e["Data"] not in hosts[v["Name"]]:
 						if v["Name"] not in changed:
@@ -150,7 +154,6 @@ class DNS:
 			raw_data.append(line)
 		
 		li = self.agg_hosts(raw_data)
-		#print li
 
 		for k, v in li.iteritems():
 			server_q = [result[0]["Time in millis"] for result in v]			
@@ -206,6 +209,7 @@ class DNS:
 			json.dump(data, f)
 
 	def add_host(self, host, result, output):
+			
 		self.result.append ({ 
 			"Name" : host, \
 			"Success" : result
@@ -218,10 +222,14 @@ class DNS:
 		answers = []
 		queries = []
 
+
 		for line in output.splitlines():
-			if not line.startswith(';'):
-				
+			
+			if line == ' ' :
+				print "WHITESPACE"
+			if (not line.startswith(';') and not line.startswith(';;')) :
 				parse = line.split()
+	
 				try:				
 					queried_name = parse[0]
 					data = parse[4]
@@ -230,6 +238,11 @@ class DNS:
 					self.add_answer(answers, parse[0], parse[4], parse[3], parse[1])
 				except IndexError:
 					pass
+			elif line.startswith(';; Query time'):
+				time = re.search(';; Query time: (.+?) msec', line).group(1)
+				
+				self.add_query(queries, time, answers)
+				answers= []
 			elif line.startswith(';; Received'):	
 				time = re.search('in (.+?) ms', line).group(1)
 				self.add_query(queries, time, answers)
@@ -238,6 +251,7 @@ class DNS:
 		return queries
 
 	def add_query(self, list, time, answers):
+	
 		list.append( {
 			"Time in millis" : time, \
 			"Answers" : answers
@@ -298,8 +312,8 @@ class DNS:
 
 a = DNS()
 
-#a.run_dig("alexa_top_100", "dig.json")
-#print a.get_average_ttls("dig.json")
+#a.run_dig("alexa_top_100", "dig_outside_server.json", "122.50.120.220")
+#print a.get_average_ttls("dig_5.json")
 #print a.get_average_times("dig_5.json")
-a.generate_time_cdfs("dig_5.json", "dns_plot_5.pdf")
-#print a.count_different_dns_responses("dig.json", "dig_5.json")
+#a.generate_time_cdfs("dig_5.json", "dns_plot_5.pdf")
+print a.count_different_dns_responses("dns_output_1.json", "dig_outside_server.json")
