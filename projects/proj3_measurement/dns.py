@@ -163,6 +163,8 @@ class DNS:
 			t.extend(other_q)
 			final_q.extend(f_temp)
 
+		f = plot.figure()
+
 		#total time to resolve a site
 		X = map(int, t)
 		cdf =  discrete_cdf(sorted(X))
@@ -187,7 +189,7 @@ class DNS:
 		plot.ylabel("Cumulative Fraction")
 		plot.show()
 
-		self.save_graph(output_cdf_filename, f)
+		self.save_graph(output_filename, f)
 
 	def save_graph(self, output_cdf_filename, f):
 		from matplotlib.backends import backend_pdf
