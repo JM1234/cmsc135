@@ -20,17 +20,12 @@ class DNS:
 
 	def run_dig(self, hostname_filename, output_filename, dns_query_server="None"):
 	
-		#try:		
-		#	with open(output_filename, 'r') as f:			
-		#		self.result =  json.load(f)
-		#except IOError:
+
 		self.result = []
 				
 		f = open(hostname_filename, 'r')		
 		hostnames = file.read(f)
 		
-		#hostnames = ["google.com", "twitter.com"]
-
 		for hostname in hostnames.splitlines():
 			print hostname
 			if(dns_query_server == "None"):
@@ -60,58 +55,75 @@ class DNS:
 
 	def get_average_times(self, filename):
 		raw_data = []
-		
+		t_data = []		
+		final_q = []
+
 		for l in open(filename, 'r'):
 			line = json.loads(l)	
 			raw_data.append(line)
 
 		li = self.agg_hosts(raw_data)		
-
-		for k, v in li.iteritems():
-			server_q = [result[0]["Time in millis"] for result in v] 			
-			tld_q = [result[1]["Time in millis"] for result in  v]
-			other_q = [result[2]["Time in millis"] for result in v]
-			final_q = [result[3]["Time in millis"] for result in v]
-
-		size = len(server_q) + len(tld_q) + len(other_q)
 	
-		total=0
-		final=0
-		for i in range(0, len(server_q)):
-			total = total+ int(server_q[i]) + int(tld_q[i]) + int(other_q[i])
-			final = final + int (final_q[i])
-		time_resolved = total/size 
-		ave_final = final/len(final_q)
+		for k, v in li.iteritems():
+			t_data.append([result[0]["Time in millis"] for result in v])			
+			t_data.append([result[1]["Time in millis"] for result in  v])
+			t_data.append([result[2]["Time in millis"] for result in v])
+			final_q.append([result[3]["Time in millis"] for result in v])
 
-		return [time_resolved, ave_final]
+		t_size = len(t_data)
+		t_total = 0
+		for i in t_data:
+			temp_total = 0
+			s = len(i)			
+			for r in i:
+				temp_total = temp_total + int(r)
+			t_total = t_total + (temp_total/s)
+		t_ave = t_total/t_size
+		
+		f_size = len(final_q)
+		f_total = 0
+		for i in final_q:
+			temp_total = 0
+			s = len(i)
+			for r in i:
+				temp_total = temp_total + int(r)
+			f_total = f_total + (temp_total/s)
+		f_ave = f_total/f_size
+		
+		return [t_ave, f_ave]
 
 	def count_different_dns_responses(self, filename1, filename2):
 		
-		with open(filename1, 'r') as f:
-			list1 = json.load(f)
+		raw_data = []
+		list1 = []
+		list2 = []
 
-		with open(filename2, 'r') as f:
-			list2 = json.load(f)
-		
+		for l in open(filename1, 'r'):
+			line = json.loads(l)	
+			list1.append(line)
+
+		for l in open(filename2, 'r'):
+			line = json.loads(l)	
+			list2.append(line)
+
 		#how many times it changed within one query
 		hosts = {}
 		changed = []
 
 		for v in list1:			
 			hosts[v["Name"]] = []
-
+			
 			if v["Success"]:
 				q = v["Queries"][3]["Answers"]
 				hosts[v["Name"]].append(q[0]["Data"])
-				
-				for e in q:
+						
+				for e in q: #for each data in query
 					if e["Data"] not in hosts[v["Name"]]:
 						if v["Name"] not in changed:
 							changed.append(v["Name"]) 
 						hosts[v["Name"]].append(e["Data"])
-		count1 = len(changed)
-		print "Value 1: " + str(count1)
-		
+		val1 = len(changed)
+
 		#how many times it changed within two files
 		for v in list2:		
 			if v["Success"]:
@@ -122,33 +134,36 @@ class DNS:
 						if v["Name"] not in changed:
 							changed.append(v["Name"]) 
 						hosts[v["Name"]].append(e["Data"])
-		print "Value 2: " + str(len(changed))
+		
+		return [val1, len(changed)]
 
 	def generate_time_cdfs(self, json_filename, output_filename):
 		X = [] #list
 		colorstring = "krgy"
 		category = ["Root", "TLD", "Other", "Terminating"] 
 		t = []
+		final_q = []
 
-		try:
-			with open(json_filename, 'r' ) as f: 
-				raw_data = json.load(f)
-		except IOError:
-			print "File not found."
+		raw_data = []
+		for l in open(json_filename, 'r'):
+			line = json.loads(l)	
+			raw_data.append(line)
 		
 		li = self.agg_hosts(raw_data)
+		#print li
 
-		server_q = [result["Queries"][0]["Time in millis"] for result in li ]
-		tld_q = [result["Queries"][1]["Time in millis"] for result in li]
-		other_q = [result["Queries"][2]["Time in millis"] for result in li]
-		final_q = [result["Queries"][3]["Time in millis"] for result in li]
+		for k, v in li.iteritems():
+			server_q = [result[0]["Time in millis"] for result in v]			
+			tld_q = [result[1]["Time in millis"] for result in  v]
+			other_q = [result[2]["Time in millis"] for result in v]
+			f_temp = [result[3]["Time in millis"] for result in v]
+	
+			t.extend(server_q)
+			t.extend(tld_q)
+			t.extend(other_q)
+			final_q.extend(f_temp)
 
 		#total time to resolve a site
-		t.extend(server_q)
-		t.extend(tld_q)
-		t.extend(other_q)
-		t.extend(final_q)
-		
 		X = map(int, t)
 		cdf =  discrete_cdf(sorted(X))
 		n = max(X)
@@ -281,8 +296,8 @@ class DNS:
 
 a = DNS()
 
-#a.run_dig("alexa_top_100", "dig_5.json")
-#print a.get_average_ttls("dig_5.json")
-print a.get_average_times("dig_5.json")
-#a.generate_time_cdfs("dig.json", "dns_plot.pdf")
-#a.count_different_dns_responses("dig.json", "dig2.json")
+#a.run_dig("alexa_top_100", "dig.json")
+#print a.get_average_ttls("dig.json")
+#print a.get_average_times("dig_5.json")
+a.generate_time_cdfs("dig_5.json", "dns_plot_5.pdf")
+#print a.count_different_dns_responses("dig.json", "dig_5.json")
