@@ -66,5 +66,5 @@ class TraceRT:
 
 a= TraceRT()
 
-a.run_traceroute('facebook.com', "5", "tr_facebook.json")
-a.parse_traceroute("tr_facebook.json", "tr_a.json")
+a.run_traceroute('www.upd.edu.ph', "5", "tr_upd.json")
+a.parse_traceroute("tr_upd.json", "tr_a.json")
